@@ -55,8 +55,22 @@ class KankaCog(commands.Cog):
             
         name = entity_data.get('name', 'Unknown')
         
+        # 1. Update the database
         db.add_character(interaction.user.id, campaign_id, entity_id, name)
+        
+        # 2. Reply to the user silently (ephemeral)
         await interaction.followup.send(f"✅ Successfully linked to **{name}**! They are now your active character.")
+
+        # 3. Post the public embed to #transcripts
+        if interaction.guild:
+            transcripts_channel = discord.utils.get(interaction.guild.text_channels, name="transcripts")
+            
+            if transcripts_channel:
+                embed = discord.Embed(
+                    description=f"🔗 {interaction.user.mention} linked **{name}** @ [Kanka Profile]({url})",
+                    color=discord.Color.green()
+                )
+                await transcripts_channel.send(embed=embed)
 
     @app_commands.command(name="sheet", description="View the active character sheet linked to a profile")
     @app_commands.describe(mention="Staff only: View another player's active character")

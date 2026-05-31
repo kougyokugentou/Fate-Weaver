@@ -103,29 +103,55 @@ class RollingCog(commands.Cog):
         embed = discord.Embed(title=f"{interaction.user.display_name} rolls for {char_name}", color=color)
         
         pool_desc = f"`{pool}`\n↳ `{math_expr}` = **{pool_size} dice**"
-        if again != 10: pool_desc += f" *( {again}-again )*"
-        if rote: pool_desc += " *( Rote )*"
+        
+        # Track our modifiers for the transcript log
+        modifiers = []
+        if again != 10: 
+            modifiers.append(f"{again}-again")
+            pool_desc += f" *( {again}-again )*"
+        if rote: 
+            modifiers.append("Rote")
+            pool_desc += " *( Rote )*"
+            
         embed.add_field(name="Pool Equation", value=pool_desc, inline=False)
         
+        # Determine outcome string for both the chat and the transcript log
+        outcome_str = ""
         if result['is_chance']:
             embed.add_field(name="Chance Die Roll", value=f"[{rolls_str}]", inline=False)
             if result['dramatic_failure']:
-                embed.description = "### 💀 Dramatic Failure!"
+                outcome_str = "💀 Dramatic Failure!"
             elif result['successes'] == 1:
-                embed.description = "### 🟢 Success!"
+                outcome_str = "🟢 Success!"
             else:
-                embed.description = "### 🔴 Failure"
+                outcome_str = "🔴 Failure"
         else:
             embed.add_field(name="Dice Results", value=f"[{rolls_str}]", inline=False)
             if result['successes'] >= 5:
-                embed.description = f"### 🌟 Exceptional Success! ({result['successes']} successes)"
+                outcome_str = f"🌟 Exceptional Success! ({result['successes']} successes)"
                 embed.color = discord.Color.gold()
+                color = discord.Color.gold()
             elif result['successes'] > 0:
-                embed.description = f"### 🟢 Success ({result['successes']} successes)"
+                outcome_str = f"🟢 Success ({result['successes']} successes)"
             else:
-                embed.description = "### 🔴 Failure (0 successes)"
+                outcome_str = "🔴 Failure (0 successes)"
 
+        embed.description = f"### {outcome_str}"
+
+        # Send the main roll response to the channel where it was typed
         await interaction.followup.send(embed=embed)
+
+        # --- NEW: Post to #transcripts ---
+        if interaction.guild:
+            transcripts_channel = discord.utils.get(interaction.guild.text_channels, name="transcripts")
+            if transcripts_channel:
+                mod_str = f" *( {', '.join(modifiers)} )*" if modifiers else ""
+                
+                log_embed = discord.Embed(
+                    description=f"🎲 {interaction.user.mention} rolled `{pool}`{mod_str} for **{char_name}**.\n↳ **Result:** {outcome_str}",
+                    color=color
+                )
+                await transcripts_channel.send(embed=log_embed)
 
 async def setup(bot):
     await bot.add_cog(RollingCog(bot))

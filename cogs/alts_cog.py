@@ -51,8 +51,23 @@ class AltsCog(commands.Cog):
         
         for char in characters:
             if char['entity_id'] == entity_id:
+                # 1. Update the database
                 db.set_active_character(interaction.user.id, entity_id)
+                
+                # 2. Reply to the user silently (ephemeral)
                 await interaction.response.send_message(f"🔄 You have switched to **{char['name']}**! All `/roll` commands will now use their stats.", ephemeral=True)
+                
+                # 3. Post the public embed to #transcripts
+                if interaction.guild:
+                    transcripts_channel = discord.utils.get(interaction.guild.text_channels, name="transcripts")
+                    
+                    if transcripts_channel:
+                        embed = discord.Embed(
+                            description=f"🎭 {interaction.user.mention} is now playing as **{char['name']}**.",
+                            color=discord.Color.dark_purple()
+                        )
+                        await transcripts_channel.send(embed=embed)
+                
                 return
                 
         # Updated Error Text
